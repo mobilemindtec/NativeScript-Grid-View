@@ -1,4 +1,4 @@
-﻿/*! *****************************************************************************
+/*! *****************************************************************************
 Copyright (c) 2017 Tangra Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,7 @@ import { GridItemEventData } from ".";
 export * from "./grid-view-common";
 
 export class GridView extends GridViewBase {
-    public nativeView: android.support.v7.widget.RecyclerView;
+    public nativeView: androidx.recyclerview.widget.RecyclerView;
     public _realizedItems = new Map<android.view.View, View>();
 
     public createNativeView() {
@@ -43,7 +43,7 @@ export class GridView extends GridViewBase {
         recyclerView.setAdapter(adapter);
         (recyclerView as any).adapter = adapter;
 
-        const layoutManager = new android.support.v7.widget.GridLayoutManager(this._context, 1);
+        const layoutManager = new androidx.recyclerview.widget.GridLayoutManager(this._context, 1);
         recyclerView.setLayoutManager(layoutManager);
         (recyclerView as any).layoutManager = layoutManager;
 
@@ -84,7 +84,7 @@ export class GridView extends GridViewBase {
         super.disposeNativeView();
     }
 
-    get android(): android.support.v7.widget.RecyclerView {
+    get android(): androidx.recyclerview.widget.RecyclerView {
         return this.nativeView;
     }
 
@@ -136,7 +136,7 @@ export class GridView extends GridViewBase {
             return;
         }
 
-        const layoutManager = this.nativeView.getLayoutManager() as android.support.v7.widget.GridLayoutManager;
+        const layoutManager = this.nativeView.getLayoutManager() as androidx.recyclerview.widget.GridLayoutManager;
         const spanCount = Math.max(Math.floor(this._innerWidth / this._effectiveColWidth), 1) || 1;
 
         layoutManager.setSpanCount(spanCount);
@@ -165,20 +165,20 @@ export class GridView extends GridViewBase {
     }
 }
 
-class GridViewScrollListener extends android.support.v7.widget.RecyclerView.OnScrollListener {
+class GridViewScrollListener extends androidx.recyclerview.widget.RecyclerView.OnScrollListener {
     constructor(private owner: WeakRef<GridView>) {
         super();
 
         return global.__native(this);
     }
 
-    public onScrolled(view: android.support.v7.widget.RecyclerView, dx: number, dy: number) {
+    public onScrolled(view: androidx.recyclerview.widget.RecyclerView, dx: number, dy: number) {
         const owner: GridView = this.owner.get();
         if (!owner) {
             return;
         }
 
-        const lastVisibleItemPos = (view.getLayoutManager() as android.support.v7.widget.GridLayoutManager).findLastCompletelyVisibleItemPosition();
+        const lastVisibleItemPos = (view.getLayoutManager() as androidx.recyclerview.widget.GridLayoutManager).findLastCompletelyVisibleItemPosition();
         const itemCount = owner.items.length;
         if (lastVisibleItemPos === itemCount) {
             owner.notify({
@@ -188,13 +188,13 @@ class GridViewScrollListener extends android.support.v7.widget.RecyclerView.OnSc
         }
     }
 
-    public onScrollStateChanged(view: android.support.v7.widget.RecyclerView, newState: number) {
+    public onScrollStateChanged(view: androidx.recyclerview.widget.RecyclerView, newState: number) {
         // Not Needed
     }
 }
 
 @Interfaces([android.view.View.OnClickListener])
-class GridViewCellHolder extends android.support.v7.widget.RecyclerView.ViewHolder implements android.view.View.OnClickListener {
+class GridViewCellHolder extends androidx.recyclerview.widget.RecyclerView.ViewHolder implements android.view.View.OnClickListener {
     constructor(private owner: WeakRef<View>, private gridView: WeakRef<GridView>) {       
         super(owner.get().android);
 
@@ -222,7 +222,7 @@ class GridViewCellHolder extends android.support.v7.widget.RecyclerView.ViewHold
     
 }
 
-class GridViewAdapter extends android.support.v7.widget.RecyclerView.Adapter {
+class GridViewAdapter extends androidx.recyclerview.widget.RecyclerView.Adapter {
     constructor(private owner: WeakRef<GridView>) {
         super();
         
@@ -238,7 +238,7 @@ class GridViewAdapter extends android.support.v7.widget.RecyclerView.Adapter {
         return long(i);
     }
 
-    public onCreateViewHolder(parent: android.view.ViewGroup, viewType: number): android.support.v7.widget.RecyclerView.ViewHolder{
+    public onCreateViewHolder(parent: android.view.ViewGroup, viewType: number): androidx.recyclerview.widget.RecyclerView.ViewHolder{
         const owner = this.owner.get();
         const view = owner._getItemTemplateContent();
 
@@ -265,7 +265,7 @@ class GridViewAdapter extends android.support.v7.widget.RecyclerView.Adapter {
     }    
 }
 
-class GridViewRecyclerView extends android.support.v7.widget.RecyclerView {
+class GridViewRecyclerView extends androidx.recyclerview.widget.RecyclerView {
     constructor(context: android.content.Context, private owner: WeakRef<GridView>) {
         super(context);
 
