@@ -6,5 +6,5 @@ android {
   }
 }
 dependencies {
-    compile 'com.android.support:recyclerview-v7:+'
+    compile 'androidx.recyclerview:recyclerview:+'
 }
