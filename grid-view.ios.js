@@ -1,5 +1,6 @@
+"use strict";
 /*! *****************************************************************************
-Copyright (c) 2015 Tangra Inc.
+Copyright (c) 2019 Tangra Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,57 +14,287 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************** */
-"use strict";
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
-exports.__esModule = true;
-var common = require("./grid-view-common");
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+var observable_1 = require("data/observable");
+var view_1 = require("ui/core/view");
 var utils = require("utils/utils");
-var view = require("ui/core/view");
-var style = require("ui/styling/style");
-var CELLIDENTIFIER = "gridcell";
-var ITEMLOADING = common.GridView.itemLoadingEvent;
-var LOADMOREITEMS = common.GridView.loadMoreItemsEvent;
-var ITEMTAP = common.GridView.itemTapEvent;
-global.moduleMerge(common, exports);
+var grid_view_common_1 = require("./grid-view-common");
+__export(require("./grid-view-common"));
+var GridView = (function (_super) {
+    __extends(GridView, _super);
+    function GridView() {
+        var _this = _super.call(this) || this;
+        _this._preparingCell = false;
+        _this._map = new Map();
+        return _this;
+    }
+    GridView.prototype.createNativeView = function () {
+        this._layout = UICollectionViewFlowLayout.alloc().init();
+        this._layout.minimumLineSpacing = 0;
+        this._layout.minimumInteritemSpacing = 0;
+        return UICollectionView.alloc().initWithFrameCollectionViewLayout(CGRectMake(0, 0, 0, 0), this._layout);
+    };
+    GridView.prototype.initNativeView = function () {
+        _super.prototype.initNativeView.call(this);
+        var nativeView = this.nativeViewProtected;
+        nativeView.backgroundColor = utils.ios.getter(UIColor, UIColor.clearColor);
+        nativeView.registerClassForCellWithReuseIdentifier(GridViewCell.class(), this._defaultTemplate.key);
+        nativeView.autoresizesSubviews = false;
+        nativeView.autoresizingMask = 0;
+        this._dataSource = GridViewDataSource.initWithOwner(new WeakRef(this));
+        nativeView.dataSource = this._dataSource;
+        this._delegate = UICollectionViewDelegateImpl.initWithOwner(new WeakRef(this));
+        this._setNativeClipToBounds();
+        this._updateColWidthProperty();
+        this._updateRowHeightProperty();
+    };
+    GridView.prototype.disposeNativeView = function () {
+        this._layout = null;
+        this._delegate = null;
+        this._dataSource = null;
+        _super.prototype.disposeNativeView.call(this);
+    };
+    GridView.prototype.onLoaded = function () {
+        _super.prototype.onLoaded.call(this);
+        this.ios.delegate = this._delegate;
+    };
+    GridView.prototype.onUnloaded = function () {
+        this.ios.delegate = null;
+        _super.prototype.onUnloaded.call(this);
+    };
+    Object.defineProperty(GridView.prototype, "ios", {
+        get: function () {
+            return this.nativeViewProtected;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(GridView.prototype, "_childrenCount", {
+        get: function () {
+            return this._map.size;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(GridView.prototype, "horizontalOffset", {
+        get: function () {
+            return this.nativeViewProtected.contentOffset.x;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(GridView.prototype, "verticalOffset", {
+        get: function () {
+            return this.nativeViewProtected.contentOffset.y;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    GridView.prototype[grid_view_common_1.paddingTopProperty.getDefault] = function () {
+        return this._layout.sectionInset.top;
+    };
+    GridView.prototype[grid_view_common_1.paddingTopProperty.setNative] = function (value) {
+        this._setPadding({ top: utils.layout.toDeviceIndependentPixels(this.effectivePaddingTop) });
+    };
+    GridView.prototype[grid_view_common_1.paddingRightProperty.getDefault] = function () {
+        return this._layout.sectionInset.right;
+    };
+    GridView.prototype[grid_view_common_1.paddingRightProperty.setNative] = function (value) {
+        this._setPadding({ right: utils.layout.toDeviceIndependentPixels(this.effectivePaddingRight) });
+    };
+    GridView.prototype[grid_view_common_1.paddingBottomProperty.getDefault] = function () {
+        return this._layout.sectionInset.bottom;
+    };
+    GridView.prototype[grid_view_common_1.paddingBottomProperty.setNative] = function (value) {
+        this._setPadding({ bottom: utils.layout.toDeviceIndependentPixels(this.effectivePaddingBottom) });
+    };
+    GridView.prototype[grid_view_common_1.paddingLeftProperty.getDefault] = function () {
+        return this._layout.sectionInset.left;
+    };
+    GridView.prototype[grid_view_common_1.paddingLeftProperty.setNative] = function (value) {
+        this._setPadding({ left: utils.layout.toDeviceIndependentPixels(this.effectivePaddingLeft) });
+    };
+    GridView.prototype[grid_view_common_1.orientationProperty.getDefault] = function () {
+        if (this._layout.scrollDirection === 1) {
+            return "horizontal";
+        }
+        return "vertical";
+    };
+    GridView.prototype[grid_view_common_1.orientationProperty.setNative] = function (value) {
+        if (value === "horizontal") {
+            this._layout.scrollDirection = 1;
+        }
+        else {
+            this._layout.scrollDirection = 0;
+        }
+    };
+    GridView.prototype[grid_view_common_1.itemTemplatesProperty.getDefault] = function () {
+        return null;
+    };
+    GridView.prototype[grid_view_common_1.itemTemplatesProperty.setNative] = function (value) {
+        this._itemTemplatesInternal = new Array(this._defaultTemplate);
+        if (value) {
+            for (var _i = 0, value_1 = value; _i < value_1.length; _i++) {
+                var template = value_1[_i];
+                this.ios.registerClassForCellWithReuseIdentifier(GridViewCell.class(), template.key);
+            }
+            this._itemTemplatesInternal = this._itemTemplatesInternal.concat(value);
+        }
+        this.refresh();
+    };
+    GridView.prototype.eachChildView = function (callback) {
+        this._map.forEach(function (view, key) {
+            callback(view);
+        });
+    };
+    GridView.prototype.onLayout = function (left, top, right, bottom) {
+        var _this = this;
+        _super.prototype.onLayout.call(this, left, top, right, bottom);
+        var layout = this.ios.collectionViewLayout;
+        layout.itemSize = CGSizeMake(utils.layout.toDeviceIndependentPixels(this._effectiveColWidth), utils.layout.toDeviceIndependentPixels(this._effectiveRowHeight));
+        this._map.forEach(function (childView, listViewCell) {
+            childView.iosOverflowSafeAreaEnabled = false;
+            view_1.View.layoutChild(_this, childView, 0, 0, _this._effectiveColWidth, _this._effectiveRowHeight);
+        });
+    };
+    GridView.prototype.refresh = function () {
+        this.eachChildView(function (view) {
+            if (!(view.bindingContext instanceof observable_1.Observable)) {
+                view.bindingContext = null;
+            }
+            return true;
+        });
+        if (this.isLoaded) {
+            this.ios.reloadData();
+            this.requestLayout();
+        }
+    };
+    GridView.prototype.scrollToIndex = function (index, animated) {
+        if (animated === void 0) { animated = true; }
+        this.ios.scrollToItemAtIndexPathAtScrollPositionAnimated(NSIndexPath.indexPathForItemInSection(index, 0), this.orientation === "vertical" ? 1 : 8, animated);
+    };
+    GridView.prototype.requestLayout = function () {
+        if (!this._preparingCell) {
+            _super.prototype.requestLayout.call(this);
+        }
+    };
+    GridView.prototype.measure = function (widthMeasureSpec, heightMeasureSpec) {
+        var changed = this._setCurrentMeasureSpecs(widthMeasureSpec, heightMeasureSpec);
+        _super.prototype.measure.call(this, widthMeasureSpec, heightMeasureSpec);
+        if (changed) {
+            this.ios.reloadData();
+        }
+    };
+    GridView.prototype.onMeasure = function (widthMeasureSpec, heightMeasureSpec) {
+        var _this = this;
+        _super.prototype.onMeasure.call(this, widthMeasureSpec, heightMeasureSpec);
+        this._map.forEach(function (childView, gridViewCell) {
+            view_1.View.measureChild(_this, childView, childView._currentWidthMeasureSpec, childView._currentHeightMeasureSpec);
+        });
+    };
+    GridView.prototype._setNativeClipToBounds = function () {
+        this.ios.clipsToBounds = true;
+    };
+    GridView.prototype._removeContainer = function (cell) {
+        var view = cell.view;
+        view.parent._removeView(view);
+        this._map.delete(cell);
+    };
+    GridView.prototype._prepareCell = function (cell, indexPath) {
+        try {
+            this._preparingCell = true;
+            var view = cell.view;
+            if (!view) {
+                view = this._getItemTemplate(indexPath.row).createView();
+            }
+            var args = {
+                eventName: grid_view_common_1.GridViewBase.itemLoadingEvent,
+                object: this,
+                index: indexPath.row,
+                view: view,
+                ios: cell,
+                android: undefined,
+            };
+            this.notify(args);
+            view = args.view;
+            if (!cell.view) {
+                cell.owner = new WeakRef(view);
+            }
+            else if (cell.view !== view) {
+                this._removeContainer(cell);
+                cell.view.nativeView.removeFromSuperview();
+                cell.owner = new WeakRef(view);
+            }
+            this._prepareItem(view, indexPath.row);
+            this._map.set(cell, view);
+            if (view && !view.parent) {
+                this._addView(view);
+                cell.contentView.addSubview(view.ios);
+            }
+            this._layoutCell(view, indexPath);
+        }
+        finally {
+            this._preparingCell = false;
+        }
+    };
+    GridView.prototype._layoutCell = function (cellView, index) {
+        if (cellView) {
+            var widthMeasureSpec = utils.layout.makeMeasureSpec(this._effectiveColWidth, utils.layout.EXACTLY);
+            var heightMeasureSpec = utils.layout.makeMeasureSpec(this._effectiveRowHeight, utils.layout.EXACTLY);
+            view_1.View.measureChild(this, cellView, widthMeasureSpec, heightMeasureSpec);
+        }
+    };
+    GridView.prototype._setPadding = function (newPadding) {
+        var padding = {
+            top: this._layout.sectionInset.top,
+            right: this._layout.sectionInset.right,
+            bottom: this._layout.sectionInset.bottom,
+            left: this._layout.sectionInset.left
+        };
+        var newValue = Object.assign(padding, newPadding);
+        this._layout.sectionInset =
+            UIEdgeInsetsFromString("{" + newValue.top + "," + newValue.left + "," + newValue.bottom + "," + newValue.right + "}");
+    };
+    return GridView;
+}(grid_view_common_1.GridViewBase));
+exports.GridView = GridView;
 var GridViewCell = (function (_super) {
     __extends(GridViewCell, _super);
     function GridViewCell() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
-    GridViewCell["new"] = function () {
-        return _super["new"].call(this);
+    GridViewCell.new = function () {
+        return _super.new.call(this);
     };
-    GridViewCell["class"] = function () {
+    GridViewCell.class = function () {
         return GridViewCell;
+    };
+    Object.defineProperty(GridViewCell.prototype, "view", {
+        get: function () {
+            return this.owner ? this.owner.get() : null;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    GridViewCell.prototype.willMoveToSuperview = function (newSuperview) {
+        var parent = (this.view ? this.view.parent : null);
+        if (parent && !newSuperview) {
+            parent._removeContainer(this);
+        }
     };
     return GridViewCell;
 }(UICollectionViewCell));
-function notifyForItemAtIndex(gridView, cell, eventName, indexPath) {
-    var args = {
-        eventName: eventName,
-        object: gridView,
-        index: indexPath.row,
-        view: cell.view
-    };
-    gridView.notify(args);
-    return args;
-}
 var GridViewDataSource = (function (_super) {
     __extends(GridViewDataSource, _super);
     function GridViewDataSource() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
+    GridViewDataSource_1 = GridViewDataSource;
     GridViewDataSource.initWithOwner = function (owner) {
-        var dataSource = GridViewDataSource["new"]();
+        var dataSource = GridViewDataSource_1.new();
         dataSource._owner = owner;
         return dataSource;
     };
@@ -71,33 +302,45 @@ var GridViewDataSource = (function (_super) {
         return 1;
     };
     GridViewDataSource.prototype.collectionViewNumberOfItemsInSection = function (collectionView, section) {
-        return this._owner.items ? this._owner.items.length : 0;
+        var owner = this._owner.get();
+        return owner.items ? owner.items.length : 0;
     };
     GridViewDataSource.prototype.collectionViewCellForItemAtIndexPath = function (collectionView, indexPath) {
-        var cell = collectionView.dequeueReusableCellWithReuseIdentifierForIndexPath(CELLIDENTIFIER, indexPath) || GridViewCell["new"]();
-        this._owner._prepareCell(cell, indexPath);
+        var owner = this._owner.get();
+        var template = owner._getItemTemplate(indexPath.row);
+        var cell = collectionView.dequeueReusableCellWithReuseIdentifierForIndexPath(template.key, indexPath) || GridViewCell.new();
+        owner._prepareCell(cell, indexPath);
         var cellView = cell.view;
-        if (cellView) {
-            view.View.layoutChild(this._owner, cellView, 0, 0, this._owner.colWidth, this._owner.rowHeight);
+        if (cellView && cellView.isLayoutRequired) {
+            cellView.iosOverflowSafeAreaEnabled = false;
+            view_1.View.layoutChild(owner, cellView, 0, 0, owner._effectiveColWidth, owner._effectiveRowHeight);
         }
         return cell;
     };
+    var GridViewDataSource_1;
+    GridViewDataSource = GridViewDataSource_1 = __decorate([
+        ObjCClass(UICollectionViewDataSource)
+    ], GridViewDataSource);
     return GridViewDataSource;
 }(NSObject));
-GridViewDataSource.ObjCProtocols = [UICollectionViewDataSource];
 var UICollectionViewDelegateImpl = (function (_super) {
     __extends(UICollectionViewDelegateImpl, _super);
     function UICollectionViewDelegateImpl() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
+    UICollectionViewDelegateImpl_1 = UICollectionViewDelegateImpl;
     UICollectionViewDelegateImpl.initWithOwner = function (owner) {
-        var delegate = UICollectionViewDelegateImpl["new"]();
+        var delegate = UICollectionViewDelegateImpl_1.new();
         delegate._owner = owner;
         return delegate;
     };
     UICollectionViewDelegateImpl.prototype.collectionViewWillDisplayCellForItemAtIndexPath = function (collectionView, cell, indexPath) {
-        if (indexPath.row === this._owner.items.length - 1) {
-            this._owner.notify({ eventName: LOADMOREITEMS, object: this._owner });
+        var owner = this._owner.get();
+        if (indexPath.row === owner.items.length - 1) {
+            owner.notify({
+                eventName: grid_view_common_1.GridViewBase.loadMoreItemsEvent,
+                object: owner
+            });
         }
         if (cell.preservesSuperviewLayoutMargins) {
             cell.preservesSuperviewLayoutMargins = false;
@@ -108,161 +351,30 @@ var UICollectionViewDelegateImpl = (function (_super) {
     };
     UICollectionViewDelegateImpl.prototype.collectionViewDidSelectItemAtIndexPath = function (collectionView, indexPath) {
         var cell = collectionView.cellForItemAtIndexPath(indexPath);
-        notifyForItemAtIndex(this._owner, cell, ITEMTAP, indexPath);
+        var owner = this._owner.get();
+        owner.notify({
+            eventName: grid_view_common_1.GridViewBase.itemTapEvent,
+            object: owner,
+            index: indexPath.row,
+            view: cell.view,
+            ios: cell,
+            android: undefined,
+        });
         cell.highlighted = false;
         return indexPath;
     };
-    UICollectionViewDelegateImpl.prototype.collectionViewLayoutSizeForItemAtIndexPath = function (collectionView, collectionViewLayout, indexPath) {
-        return CGSizeMake(this._owner.colWidth, this._owner.rowHeight);
+    UICollectionViewDelegateImpl.prototype.scrollViewDidScroll = function (collectionView) {
+        var owner = this._owner.get();
+        owner.notify({
+            object: owner,
+            eventName: grid_view_common_1.GridViewBase.scrollEvent,
+            scrollX: owner.horizontalOffset,
+            scrollY: owner.verticalOffset
+        });
     };
+    var UICollectionViewDelegateImpl_1;
+    UICollectionViewDelegateImpl = UICollectionViewDelegateImpl_1 = __decorate([
+        ObjCClass(UICollectionViewDelegate, UICollectionViewDelegateFlowLayout)
+    ], UICollectionViewDelegateImpl);
     return UICollectionViewDelegateImpl;
 }(NSObject));
-UICollectionViewDelegateImpl.ObjCProtocols = [UICollectionViewDelegate, UICollectionViewDelegateFlowLayout];
-var GridView = (function (_super) {
-    __extends(GridView, _super);
-    function GridView() {
-        var _this = _super.call(this) || this;
-        _this._preparingCell = false;
-        _this._layout = new UICollectionViewFlowLayout();
-        _this._ios = UICollectionView.alloc().initWithFrameCollectionViewLayout(CGRectMake(0, 0, 0, 0), _this._layout);
-        _this._ios.backgroundColor = utils.ios.getter(UIColor, UIColor.clearColor);
-        _this._ios.registerClassForCellWithReuseIdentifier(GridViewCell["class"](), CELLIDENTIFIER);
-        _this._ios.autoresizesSubviews = false;
-        _this._ios.autoresizingMask = UIViewAutoresizing.UIViewAutoresizingNone;
-        _this._dataSource = GridViewDataSource.initWithOwner(_this);
-        _this._ios.dataSource = _this._dataSource;
-        _this._delegate = UICollectionViewDelegateImpl.initWithOwner(_this);
-        return _this;
-    }
-    GridView.prototype.onLoaded = function () {
-        _super.prototype.onLoaded.call(this);
-        this._ios.delegate = this._delegate;
-    };
-    GridView.prototype.onUnloaded = function () {
-        this._ios.delegate = null;
-        _super.prototype.onUnloaded.call(this);
-    };
-    Object.defineProperty(GridView.prototype, "ios", {
-        get: function () {
-            return this._ios;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    GridView.prototype.refresh = function () {
-        this._ios.collectionViewLayout.minimumLineSpacing = this.verticalSpacing;
-        this._ios.collectionViewLayout.minimumInteritemSpacing = this.horizontalSpacing;
-        this._ios.reloadData();
-        this.requestLayout();
-    };
-    GridView.prototype.requestLayout = function () {
-        // When preparing cell don't call super - no need to invalidate our measure when cell desiredSize is changed.
-        if (!this._preparingCell) {
-            _super.prototype.requestLayout.call(this);
-        }
-    };
-    GridView.prototype.measure = function (widthMeasureSpec, heightMeasureSpec) {
-        var changed = this._setCurrentMeasureSpecs(widthMeasureSpec, heightMeasureSpec);
-        _super.prototype.measure.call(this, widthMeasureSpec, heightMeasureSpec);
-        if (changed) {
-            this._ios.reloadData();
-        }
-    };
-    GridView.prototype._layoutCell = function (cellView, index) {
-        if (cellView) {
-            var widthMeasureSpec = utils.layout.makeMeasureSpec(this.colWidth, utils.layout.EXACTLY), heightMeasureSpec = utils.layout.makeMeasureSpec(this.rowHeight, utils.layout.EXACTLY);
-            view.View.measureChild(this, cellView, widthMeasureSpec, heightMeasureSpec);
-        }
-    };
-    GridView.prototype._prepareCell = function (tableCell, indexPath) {
-        var cell = tableCell;
-        try {
-            this._preparingCell = true;
-            if (!cell.view) {
-                cell.view = this._getItemTemplateContent();
-            }
-            notifyForItemAtIndex(this, cell, ITEMLOADING, indexPath);
-            var view_1 = cell.view;
-            if (view_1 && !view_1.parent && view_1.ios) {
-                cell.contentView.addSubview(view_1.ios);
-                this._addView(view_1);
-            }
-            this._prepareItem(view_1, indexPath.row);
-            this._layoutCell(view_1, indexPath);
-        }
-        finally {
-            this._preparingCell = false;
-        }
-    };
-    return GridView;
-}(common.GridView));
-exports.GridView = GridView;
-//#region Styling
-var GridViewStyler = (function () {
-    function GridViewStyler() {
-    }
-    GridViewStyler.setSectionInset = function (gridView, padding) {
-        var flowLayout = gridView.ios.collectionViewLayout;
-        var currentInset = flowLayout.sectionInset;
-        flowLayout.sectionInset = {
-            top: padding.top !== undefined ? padding.top : currentInset.top,
-            right: padding.right !== undefined ? padding.right : currentInset.right,
-            bottom: padding.bottom !== undefined ? padding.bottom : currentInset.bottom,
-            left: padding.left !== undefined ? padding.left : currentInset.left
-        };
-    };
-    //#region Padding Top Property
-    GridViewStyler.setPaddingTop = function (gridView, newValue) {
-        GridViewStyler.setSectionInset(gridView, { top: newValue });
-    };
-    GridViewStyler.resetPaddingTop = function (gridView, nativeValue) {
-        GridViewStyler.setPaddingTop(gridView, nativeValue);
-    };
-    GridViewStyler.getNativePaddingTopValue = function (gridView) {
-        return gridView.ios.collectionViewLayout.sectionInset.top;
-    };
-    //#endregion
-    //#region Padding Right Property
-    GridViewStyler.setPaddingRight = function (gridView, newValue) {
-        GridViewStyler.setSectionInset(gridView, { right: newValue });
-    };
-    GridViewStyler.resetPaddingRight = function (gridView, nativeValue) {
-        GridViewStyler.setPaddingRight(gridView, nativeValue);
-    };
-    GridViewStyler.getNativePaddingRightValue = function (gridView) {
-        return gridView.ios.collectionViewLayout.sectionInset.right;
-    };
-    //#endregion
-    //#region Padding Bottom Property
-    GridViewStyler.setPaddingBottom = function (gridView, newValue) {
-        GridViewStyler.setSectionInset(gridView, { bottom: newValue });
-    };
-    GridViewStyler.resetPaddingBottom = function (gridView, nativeValue) {
-        GridViewStyler.setPaddingBottom(gridView, nativeValue);
-    };
-    GridViewStyler.getNativePaddingBottomValue = function (gridView) {
-        return gridView.ios.collectionViewLayout.sectionInset.bottom;
-    };
-    //#endregion
-    //#region Padding Left Property
-    GridViewStyler.setPaddingLeft = function (gridView, newValue) {
-        GridViewStyler.setSectionInset(gridView, { left: newValue });
-    };
-    GridViewStyler.resetPaddingLeft = function (gridView, nativeValue) {
-        GridViewStyler.setPaddingLeft(gridView, nativeValue);
-    };
-    GridViewStyler.getNativePaddingLeftValue = function (gridView) {
-        return gridView.ios.collectionViewLayout.sectionInset.left;
-    };
-    //#endregion
-    GridViewStyler.registerHandlers = function () {
-        style.registerHandler(style.paddingTopProperty, new style.StylePropertyChangedHandler(GridViewStyler.setPaddingTop, GridViewStyler.resetPaddingTop, GridViewStyler.getNativePaddingTopValue), "GridView");
-        style.registerHandler(style.paddingRightProperty, new style.StylePropertyChangedHandler(GridViewStyler.setPaddingRight, GridViewStyler.resetPaddingRight, GridViewStyler.getNativePaddingRightValue), "GridView");
-        style.registerHandler(style.paddingBottomProperty, new style.StylePropertyChangedHandler(GridViewStyler.setPaddingBottom, GridViewStyler.resetPaddingBottom, GridViewStyler.getNativePaddingBottomValue), "GridView");
-        style.registerHandler(style.paddingLeftProperty, new style.StylePropertyChangedHandler(GridViewStyler.setPaddingLeft, GridViewStyler.resetPaddingLeft, GridViewStyler.getNativePaddingLeftValue), "GridView");
-    };
-    return GridViewStyler;
-}());
-exports.GridViewStyler = GridViewStyler;
-GridViewStyler.registerHandlers();
-//#endregion

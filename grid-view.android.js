@@ -1,5 +1,6 @@
+"use strict";
 /*! *****************************************************************************
-Copyright (c) 2015 Tangra Inc.
+Copyright (c) 2019 Tangra Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,244 +14,353 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************** */
-"use strict";
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
-exports.__esModule = true;
-var common = require("./grid-view-common");
-var utils = require("utils/utils");
-var layoutBase = require("ui/layouts/layout-base");
-var stackLayout = require("ui/layouts/stack-layout");
-var style = require("ui/styling/style");
-var ITEMLOADING = common.GridView.itemLoadingEvent;
-var LOADMOREITEMS = common.GridView.loadMoreItemsEvent;
-var ITEMTAP = common.GridView.itemTapEvent;
-var REALIZED_INDEX = "realizedIndex";
-global.moduleMerge(common, exports);
-function notifyForItemAtIndex(gridView, view, eventName, index) {
-    var args = {
-        eventName: eventName,
-        object: gridView,
-        index: index,
-        view: view
-    };
-    gridView.notify(args);
-    return args;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
+Object.defineProperty(exports, "__esModule", { value: true });
+var grid_layout_1 = require("ui/layouts/grid-layout");
+var utils = require("utils/utils");
+var grid_view_common_1 = require("./grid-view-common");
+__export(require("./grid-view-common"));
+var DUMMY = "DUMMY";
 var GridView = (function (_super) {
     __extends(GridView, _super);
     function GridView() {
         var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this._realizedItems = {};
+        _this._realizedItems = new Map();
         return _this;
     }
-    GridView.prototype._createUI = function () {
-        this._android = new android.widget.GridView(this._context);
-        this._android.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-        // Fixes issue with black random black items when scrolling
-        this._android.setCacheColorHint(android.graphics.Color.TRANSPARENT);
-        if (!this._androidViewId) {
-            this._androidViewId = android.view.View.generateViewId();
-        }
-        this._android.setId(this._androidViewId);
-        this.android.setAdapter(new GridViewAdapter(this));
-        this.android.setNumColumns(android.widget.GridView.AUTO_FIT);
-        this.android.setStretchMode(android.widget.GridView.STRETCH_SPACING);
-        this._resetNativeColumnAndSpacingSettings();
-        var that = new WeakRef(this);
-        this.android.setOnScrollListener(new android.widget.AbsListView.OnScrollListener({
-            onScrollStateChanged: function (view, scrollState) {
-                // Empty
-            },
-            onScroll: function (view, firstVisibleItem, visibleItemCount, totalItemCount) {
-                var owner = this.owner;
-                if (!owner) {
-                    return;
-                }
-                if (totalItemCount > 0
-                    && firstVisibleItem + visibleItemCount === totalItemCount) {
-                    owner.notify({ eventName: LOADMOREITEMS, object: owner });
-                }
-            },
-            get owner() { return that.get(); }
-        }));
-        this.android.setOnItemClickListener(new android.widget.AdapterView.OnItemClickListener({
-            onItemClick: function (parent, convertView, index, id) {
-                var owner = that.get();
-                notifyForItemAtIndex(owner, owner._getRealizedView(convertView), ITEMTAP, index);
-            }
-        }));
+    GridView.prototype.createNativeView = function () {
+        initGridViewRecyclerView();
+        var recyclerView = new GridViewRecyclerView(this._context, new WeakRef(this));
+        initGridViewAdapter();
+        var adapter = new GridViewAdapter(new WeakRef(this));
+        adapter.setHasStableIds(true);
+        recyclerView.setAdapter(adapter);
+        recyclerView.adapter = adapter;
+        var orientation = this._getLayoutManagarOrientation();
+        var layoutManager = new androidx.recyclerview.widget.GridLayoutManager(this._context, 1);
+        recyclerView.setLayoutManager(layoutManager);
+        layoutManager.setOrientation(orientation);
+        recyclerView.layoutManager = layoutManager;
+        initGridViewScrollListener();
+        var scrollListener = new GridViewScrollListener(new WeakRef(this));
+        recyclerView.addOnScrollListener(scrollListener);
+        recyclerView.scrollListener = scrollListener;
+        return recyclerView;
+    };
+    GridView.prototype.initNativeView = function () {
+        _super.prototype.initNativeView.call(this);
+        var nativeView = this.nativeView;
+        nativeView.adapter.owner = new WeakRef(this);
+        nativeView.scrollListener.owner = new WeakRef(this);
+        nativeView.owner = new WeakRef(this);
+        grid_view_common_1.colWidthProperty.coerce(this);
+        grid_view_common_1.rowHeightProperty.coerce(this);
+    };
+    GridView.prototype.disposeNativeView = function () {
+        this.eachChildView(function (view) {
+            view.parent._removeView(view);
+            return true;
+        });
+        this._realizedItems.clear();
+        var nativeView = this.nativeView;
+        this.nativeView.removeOnScrollListener(nativeView.scrollListener);
+        nativeView.scrollListener = null;
+        nativeView.adapter = null;
+        nativeView.layoutManager = null;
+        _super.prototype.disposeNativeView.call(this);
     };
     Object.defineProperty(GridView.prototype, "android", {
         get: function () {
-            return this._android;
+            return this.nativeView;
         },
         enumerable: true,
         configurable: true
     });
-    GridView.prototype._resetNativeColumnAndSpacingSettings = function () {
-        this.android.setColumnWidth(this.colWidth * utils.layout.getDisplayDensity());
-        this.android.setVerticalSpacing(this.verticalSpacing * utils.layout.getDisplayDensity());
-        this.android.setHorizontalSpacing(this.horizontalSpacing * utils.layout.getDisplayDensity());
+    Object.defineProperty(GridView.prototype, "_childrenCount", {
+        get: function () {
+            return this._realizedItems.size;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    GridView.prototype[grid_view_common_1.paddingTopProperty.getDefault] = function () {
+        return this.nativeView.getPaddingTop();
     };
-    GridView.prototype.refresh = function () {
-        if (!this._android
-            || !this._android.getAdapter()) {
-            return;
+    GridView.prototype[grid_view_common_1.paddingTopProperty.setNative] = function (value) {
+        this._setPadding({ top: this.effectivePaddingTop });
+    };
+    GridView.prototype[grid_view_common_1.paddingRightProperty.getDefault] = function () {
+        return this.nativeView.getPaddingRight();
+    };
+    GridView.prototype[grid_view_common_1.paddingRightProperty.setNative] = function (value) {
+        this._setPadding({ right: this.effectivePaddingRight });
+    };
+    GridView.prototype[grid_view_common_1.paddingBottomProperty.getDefault] = function () {
+        return this.nativeView.getPaddingBottom();
+    };
+    GridView.prototype[grid_view_common_1.paddingBottomProperty.setNative] = function (value) {
+        this._setPadding({ bottom: this.effectivePaddingBottom });
+    };
+    GridView.prototype[grid_view_common_1.paddingLeftProperty.getDefault] = function () {
+        return this.nativeView.getPaddingLeft();
+    };
+    GridView.prototype[grid_view_common_1.paddingLeftProperty.setNative] = function (value) {
+        this._setPadding({ left: this.effectivePaddingLeft });
+    };
+    GridView.prototype[grid_view_common_1.orientationProperty.getDefault] = function () {
+        var layoutManager = this.nativeView.getLayoutManager();
+        if (layoutManager.getOrientation() === androidx.recyclerview.widget.RecyclerView.LayoutManager.HORIZONTAL) {
+            return "horizontal";
         }
-        this._resetNativeColumnAndSpacingSettings();
-        this.android.getAdapter().notifyDataSetChanged();
+        return "vertical";
     };
-    GridView.prototype._onDetached = function (force) {
-        _super.prototype._onDetached.call(this, force);
-        // clear the cache
-        var keys = Object.keys(this._realizedItems);
-        var i;
-        var length = keys.length;
-        var view;
-        var key;
-        for (i = 0; i < length; i++) {
-            key = keys[i];
-            view = this._realizedItems[key];
-            view.parent._removeView(view);
-            delete this._realizedItems[key];
+    GridView.prototype[grid_view_common_1.orientationProperty.setNative] = function (value) {
+        var layoutManager = this.nativeView.getLayoutManager();
+        if (value === "horizontal") {
+            layoutManager.setOrientation(androidx.recyclerview.widget.RecyclerView.LayoutManager.HORIZONTAL);
+        }
+        else {
+            layoutManager.setOrientation(androidx.recyclerview.widget.RecyclerView.LayoutManager.VERTICAL);
         }
     };
-    GridView.prototype._getRealizedView = function (convertView) {
-        if (!convertView) {
-            return this._getItemTemplateContent();
-        }
-        return this._realizedItems[convertView.hashCode()];
-    };
-    return GridView;
-}(common.GridView));
-exports.GridView = GridView;
-var GridViewAdapter = (function (_super) {
-    __extends(GridViewAdapter, _super);
-    function GridViewAdapter(gridView) {
-        var _this = _super.call(this) || this;
-        _this._gridView = gridView;
-        return global.__native(_this);
-    }
-    GridViewAdapter.prototype.getCount = function () {
-        return this._gridView && this._gridView.items ? this._gridView.items.length : 0;
-    };
-    GridViewAdapter.prototype.getItem = function (i) {
-        if (this._gridView
-            && this._gridView.items
-            && i < this._gridView.items.length) {
-            return this._gridView.items.getItem ? this._gridView.items.getItem(i) : this._gridView.items[i];
-        }
+    GridView.prototype[grid_view_common_1.itemTemplatesProperty.getDefault] = function () {
         return null;
     };
-    GridViewAdapter.prototype.getItemId = function (i) {
-        return long(i);
-    };
-    GridViewAdapter.prototype.hasStableIds = function () {
-        return true;
-    };
-    GridViewAdapter.prototype.getView = function (index, convertView, parent) {
-        if (!this._gridView) {
-            return null;
+    GridView.prototype[grid_view_common_1.itemTemplatesProperty.setNative] = function (value) {
+        this._itemTemplatesInternal = new Array(this._defaultTemplate);
+        if (value) {
+            this._itemTemplatesInternal = this._itemTemplatesInternal.concat(value);
         }
-        var view = this._gridView._getRealizedView(convertView);
-        notifyForItemAtIndex(this._gridView, view, ITEMLOADING, index);
-        if (view) {
-            this._gridView._prepareItem(view, index);
-            view.height = this._gridView.rowHeight;
-            view.width = this._gridView.colWidth;
-            if (!view.parent) {
-                if (view instanceof layoutBase.LayoutBase) {
-                    this._gridView._addView(view);
-                    convertView = view.android;
-                }
-                else {
-                    var sp = new stackLayout.StackLayout();
-                    sp.addChild(view);
-                    this._gridView._addView(sp);
-                    convertView = sp.android;
+        this.nativeViewProtected.setAdapter(new GridViewAdapter(new WeakRef(this)));
+        this.refresh();
+    };
+    GridView.prototype.eachChildView = function (callback) {
+        this._realizedItems.forEach(function (view, key) {
+            callback(view);
+        });
+    };
+    GridView.prototype.onLayout = function (left, top, right, bottom) {
+        _super.prototype.onLayout.call(this, left, top, right, bottom);
+        this.refresh();
+    };
+    GridView.prototype.refresh = function () {
+        if (!this.nativeView || !this.nativeView.getAdapter()) {
+            return;
+        }
+        var layoutManager = this.nativeView.getLayoutManager();
+        var spanCount;
+        if (this.orientation === "horizontal") {
+            spanCount = Math.max(Math.floor(this._innerHeight / this._effectiveRowHeight), 1) || 1;
+        }
+        else {
+            spanCount = Math.max(Math.floor(this._innerWidth / this._effectiveColWidth), 1) || 1;
+        }
+        layoutManager.setSpanCount(spanCount);
+        this.nativeView.getAdapter().notifyDataSetChanged();
+    };
+    GridView.prototype.scrollToIndex = function (index, animated) {
+        if (animated === void 0) { animated = true; }
+        if (animated) {
+            this.nativeView.smoothScrollToPosition(index);
+        }
+        else {
+            this.nativeView.scrollToPosition(index);
+        }
+    };
+    GridView.prototype._setPadding = function (newPadding) {
+        var nativeView = this.nativeView;
+        var padding = {
+            top: nativeView.getPaddingTop(),
+            right: nativeView.getPaddingRight(),
+            bottom: nativeView.getPaddingBottom(),
+            left: nativeView.getPaddingLeft()
+        };
+        var newValue = Object.assign(padding, newPadding);
+        nativeView.setPadding(newValue.left, newValue.top, newValue.right, newValue.bottom);
+    };
+    GridView.prototype._getLayoutManagarOrientation = function () {
+        var orientation = androidx.recyclerview.widget.RecyclerView.LayoutManager.VERTICAL;
+        if (this.orientation === "horizontal") {
+            orientation = androidx.recyclerview.widget.RecyclerView.LayoutManager.HORIZONTAL;
+        }
+        return orientation;
+    };
+    return GridView;
+}(grid_view_common_1.GridViewBase));
+exports.GridView = GridView;
+var GridViewScrollListener;
+function initGridViewScrollListener() {
+    if (GridViewScrollListener) {
+        return;
+    }
+    var GridViewScrollListenerImpl = (function (_super) {
+        __extends(GridViewScrollListenerImpl, _super);
+        function GridViewScrollListenerImpl(owner) {
+            var _this = _super.call(this) || this;
+            _this.owner = owner;
+            return global.__native(_this);
+        }
+        GridViewScrollListenerImpl.prototype.onScrolled = function (view, dx, dy) {
+            var owner = this.owner.get();
+            if (!owner) {
+                return;
+            }
+            owner.notify({
+                eventName: grid_view_common_1.GridViewBase.scrollEvent,
+                object: owner,
+                scrollX: dx,
+                scrollY: dy,
+            });
+            var lastVisibleItemPos = view.getLayoutManager().findLastCompletelyVisibleItemPosition();
+            if (owner && owner.items) {
+                var itemCount = owner.items.length - 1;
+                if (lastVisibleItemPos === itemCount) {
+                    owner.notify({
+                        eventName: grid_view_common_1.GridViewBase.loadMoreItemsEvent,
+                        object: owner
+                    });
                 }
             }
-            this._gridView._realizedItems[convertView.hashCode()] = view;
-            view[REALIZED_INDEX] = index;
-        }
-        return convertView;
-    };
-    return GridViewAdapter;
-}(android.widget.BaseAdapter));
-//#region Styling
-var GridViewStyler = (function () {
-    function GridViewStyler() {
-    }
-    GridViewStyler.setPadding = function (gridView, padding) {
-        var finalPadding = {
-            top: padding.top !== undefined ? padding.top * utils.layout.getDisplayDensity() : gridView.android.getPaddingTop(),
-            right: padding.right !== undefined ? padding.right * utils.layout.getDisplayDensity() : gridView.android.getPaddingRight(),
-            bottom: padding.bottom !== undefined ? padding.bottom * utils.layout.getDisplayDensity() : gridView.android.getPaddingBottom(),
-            left: padding.left !== undefined ? padding.left * utils.layout.getDisplayDensity() : gridView.android.getPaddingLeft()
         };
-        gridView.android.setPadding(finalPadding.left, finalPadding.top, finalPadding.right, finalPadding.bottom);
-    };
-    //#region Padding Top Property
-    GridViewStyler.setPaddingTop = function (gridView, newValue) {
-        GridViewStyler.setPadding(gridView, { top: newValue });
-    };
-    GridViewStyler.resetPaddingTop = function (gridView, nativeValue) {
-        GridViewStyler.setPaddingTop(gridView, nativeValue);
-    };
-    GridViewStyler.getNativePaddingTopValue = function (gridView) {
-        return gridView.android.getPaddingTop();
-    };
-    //#endregion
-    //#region Padding Right Property
-    GridViewStyler.setPaddingRight = function (gridView, newValue) {
-        GridViewStyler.setPadding(gridView, { right: newValue });
-    };
-    GridViewStyler.resetPaddingRight = function (gridView, nativeValue) {
-        GridViewStyler.setPaddingRight(gridView, nativeValue);
-    };
-    GridViewStyler.getNativePaddingRightValue = function (gridView) {
-        return gridView.android.getPaddingRight();
-    };
-    //#endregion
-    //#region Padding Bottom Property
-    GridViewStyler.setPaddingBottom = function (gridView, newValue) {
-        GridViewStyler.setPadding(gridView, { bottom: newValue });
-    };
-    GridViewStyler.resetPaddingBottom = function (gridView, nativeValue) {
-        GridViewStyler.setPaddingBottom(gridView, nativeValue);
-    };
-    GridViewStyler.getNativePaddingBottomValue = function (gridView) {
-        return gridView.android.getPaddingBottom();
-    };
-    //#endregion
-    //#region Padding Left Property
-    GridViewStyler.setPaddingLeft = function (gridView, newValue) {
-        GridViewStyler.setPadding(gridView, { left: newValue });
-    };
-    GridViewStyler.resetPaddingLeft = function (gridView, nativeValue) {
-        GridViewStyler.setPaddingLeft(gridView, nativeValue);
-    };
-    GridViewStyler.getNativePaddingLeftValue = function (gridView) {
-        return gridView.android.getPaddingLeft();
-    };
-    //#endregion
-    GridViewStyler.registerHandlers = function () {
-        style.registerHandler(style.paddingTopProperty, new style.StylePropertyChangedHandler(GridViewStyler.setPaddingTop, GridViewStyler.resetPaddingTop, GridViewStyler.getNativePaddingTopValue), "GridView");
-        style.registerHandler(style.paddingRightProperty, new style.StylePropertyChangedHandler(GridViewStyler.setPaddingRight, GridViewStyler.resetPaddingRight, GridViewStyler.getNativePaddingRightValue), "GridView");
-        style.registerHandler(style.paddingBottomProperty, new style.StylePropertyChangedHandler(GridViewStyler.setPaddingBottom, GridViewStyler.resetPaddingBottom, GridViewStyler.getNativePaddingBottomValue), "GridView");
-        style.registerHandler(style.paddingLeftProperty, new style.StylePropertyChangedHandler(GridViewStyler.setPaddingLeft, GridViewStyler.resetPaddingLeft, GridViewStyler.getNativePaddingLeftValue), "GridView");
-    };
-    return GridViewStyler;
-}());
-exports.GridViewStyler = GridViewStyler;
-GridViewStyler.registerHandlers();
-//#endregion 
+        GridViewScrollListenerImpl.prototype.onScrollStateChanged = function (view, newState) {
+        };
+        return GridViewScrollListenerImpl;
+    }(androidx.recyclerview.widget.RecyclerView.OnScrollListener));
+    GridViewScrollListener = GridViewScrollListenerImpl;
+}
+var GridViewAdapter;
+function initGridViewAdapter() {
+    if (GridViewAdapter) {
+        return;
+    }
+    var GridViewCellHolder = (function (_super) {
+        __extends(GridViewCellHolder, _super);
+        function GridViewCellHolder(owner, gridView) {
+            var _this = _super.call(this, owner.get().android) || this;
+            _this.owner = owner;
+            _this.gridView = gridView;
+            var nativeThis = global.__native(_this);
+            var nativeView = owner.get().android;
+            nativeView.setOnClickListener(nativeThis);
+            return nativeThis;
+        }
+        Object.defineProperty(GridViewCellHolder.prototype, "view", {
+            get: function () {
+                return this.owner ? this.owner.get() : null;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        GridViewCellHolder.prototype.onClick = function (v) {
+            var gridView = this.gridView.get();
+            gridView.notify({
+                eventName: grid_view_common_1.GridViewBase.itemTapEvent,
+                object: gridView,
+                index: this.getAdapterPosition(),
+                view: this.view,
+                android: v,
+                ios: undefined,
+            });
+        };
+        GridViewCellHolder = __decorate([
+            Interfaces([android.view.View.OnClickListener])
+        ], GridViewCellHolder);
+        return GridViewCellHolder;
+    }(androidx.recyclerview.widget.RecyclerView.ViewHolder));
+    var GridViewAdapterImpl = (function (_super) {
+        __extends(GridViewAdapterImpl, _super);
+        function GridViewAdapterImpl(owner) {
+            var _this = _super.call(this) || this;
+            _this.owner = owner;
+            return global.__native(_this);
+        }
+        GridViewAdapterImpl.prototype.getItemCount = function () {
+            var owner = this.owner.get();
+            return owner.items ? owner.items.length : 0;
+        };
+        GridViewAdapterImpl.prototype.getItem = function (i) {
+            var owner = this.owner.get();
+            if (owner && owner.items && i < owner.items.length) {
+                return owner._getDataItem(i);
+            }
+            return null;
+        };
+        GridViewAdapterImpl.prototype.getItemId = function (i) {
+            var owner = this.owner.get();
+            var item = this.getItem(i);
+            var id = i;
+            if (this.owner && item && owner.items) {
+                id = owner.itemIdGenerator(item, i, owner.items);
+            }
+            return long(id);
+        };
+        GridViewAdapterImpl.prototype.getItemViewType = function (index) {
+            var owner = this.owner.get();
+            var template = owner._getItemTemplate(index);
+            var itemViewType = owner._itemTemplatesInternal.indexOf(template);
+            return itemViewType;
+        };
+        GridViewAdapterImpl.prototype.onCreateViewHolder = function (parent, viewType) {
+            var owner = this.owner.get();
+            var template = owner._itemTemplatesInternal[viewType];
+            var view = template.createView();
+            if (!view) {
+                view = new grid_layout_1.GridLayout();
+                view[DUMMY] = true;
+            }
+            owner._addView(view);
+            owner._realizedItems.set(view.android, view);
+            return new GridViewCellHolder(new WeakRef(view), new WeakRef(owner));
+        };
+        GridViewAdapterImpl.prototype.onBindViewHolder = function (vh, index) {
+            var owner = this.owner.get();
+            var args = {
+                eventName: grid_view_common_1.GridViewBase.itemLoadingEvent,
+                object: owner,
+                index: index,
+                view: vh.view[DUMMY] ? null : vh.view,
+                android: vh,
+                ios: undefined,
+            };
+            owner.notify(args);
+            if (vh.view[DUMMY]) {
+                vh.view.addChild(args.view);
+                vh.view[DUMMY] = undefined;
+            }
+            if (owner.orientation === "horizontal") {
+                vh.view.width = utils.layout.toDeviceIndependentPixels(owner._effectiveColWidth);
+            }
+            else {
+                vh.view.height = utils.layout.toDeviceIndependentPixels(owner._effectiveRowHeight);
+            }
+            owner._prepareItem(vh.view, index);
+        };
+        return GridViewAdapterImpl;
+    }(androidx.recyclerview.widget.RecyclerView.Adapter));
+    GridViewAdapter = GridViewAdapterImpl;
+}
+var GridViewRecyclerView;
+function initGridViewRecyclerView() {
+    if (GridViewRecyclerView) {
+        return;
+    }
+    var GridViewRecyclerViewImpl = (function (_super) {
+        __extends(GridViewRecyclerViewImpl, _super);
+        function GridViewRecyclerViewImpl(context, owner) {
+            var _this = _super.call(this, context) || this;
+            _this.owner = owner;
+            return global.__native(_this);
+        }
+        GridViewRecyclerViewImpl.prototype.onLayout = function (changed, l, t, r, b) {
+            if (changed) {
+                var owner = this.owner.get();
+                owner.onLayout(l, t, r, b);
+            }
+            _super.prototype.onLayout.call(this, changed, l, t, r, b);
+        };
+        return GridViewRecyclerViewImpl;
+    }(androidx.recyclerview.widget.RecyclerView));
+    GridViewRecyclerView = GridViewRecyclerViewImpl;
+}
