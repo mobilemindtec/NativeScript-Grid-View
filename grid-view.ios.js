@@ -40,7 +40,7 @@ var GridView = (function (_super) {
     GridView.prototype.initNativeView = function () {
         _super.prototype.initNativeView.call(this);
         var nativeView = this.nativeViewProtected;
-        nativeView.backgroundColor = utils.ios.getter(UIColor, UIColor.clearColor);
+        nativeView.backgroundColor = UIColor
         nativeView.registerClassForCellWithReuseIdentifier(GridViewCell.class(), this._defaultTemplate.key);
         nativeView.autoresizesSubviews = false;
         nativeView.autoresizingMask = 0;
