@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************** */
 
-import { KeyedTemplate, Length, View } from "ui/core/view";
-import { GridLayout } from "ui/layouts/grid-layout";
-import * as utils from "utils/utils";
+import { KeyedTemplate, Length, View } from "@nativescript/core";
+import { GridLayout } from "@nativescript/core/ui/layouts";
+import * as utils from "@nativescript/core/utils";
 
 import {
     GridViewBase,
@@ -35,10 +35,10 @@ import { GridItemEventData, Orientation, ScrollEventData } from ".";
 export * from "./grid-view-common";
 
 // Used to designate a view as as a DUMMY created view (to cope with angular view generation)
-const DUMMY = "DUMMY";
+const DUMMY:string = "DUMMY";
 
 export class GridView extends GridViewBase {
-    public nativeView: android.support.v7.widget.RecyclerView;
+    public nativeView: androidx.recyclerview.widget.RecyclerView;
     public _realizedItems = new Map<android.view.View, View>();
 
     public createNativeView() {
@@ -53,7 +53,7 @@ export class GridView extends GridViewBase {
 
         const orientation = this._getLayoutManagarOrientation();
 
-        const layoutManager = new android.support.v7.widget.GridLayoutManager(this._context, 1);
+        const layoutManager = new androidx.recyclerview.widget.GridLayoutManager(this._context, 1);
         recyclerView.setLayoutManager(layoutManager);
         layoutManager.setOrientation(orientation);
         (recyclerView as any).layoutManager = layoutManager;
@@ -96,7 +96,8 @@ export class GridView extends GridViewBase {
         super.disposeNativeView();
     }
 
-    get android(): android.support.v7.widget.RecyclerView {
+    //@ts-nocheck
+    get android(): androidx.recyclerview.widget.RecyclerView {
         return this.nativeView;
     }
 
@@ -133,20 +134,20 @@ export class GridView extends GridViewBase {
     }
 
     public [orientationProperty.getDefault](): Orientation {
-        const layoutManager = this.nativeView.getLayoutManager() as android.support.v7.widget.GridLayoutManager;
-        if (layoutManager.getOrientation() === android.support.v7.widget.LinearLayoutManager.HORIZONTAL) {
+        const layoutManager = this.nativeView.getLayoutManager() as androidx.recyclerview.widget.GridLayoutManager;
+        if (layoutManager.getOrientation() === androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL) {
             return "horizontal";
         }
 
         return "vertical";
     }
     public [orientationProperty.setNative](value: Orientation) {
-        const layoutManager = this.nativeView.getLayoutManager() as android.support.v7.widget.GridLayoutManager;
+        const layoutManager = this.nativeView.getLayoutManager() as androidx.recyclerview.widget.GridLayoutManager;
         if (value === "horizontal") {
-            layoutManager.setOrientation(android.support.v7.widget.LinearLayoutManager.HORIZONTAL);
+            layoutManager.setOrientation(androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL);
         }
         else {
-            layoutManager.setOrientation(android.support.v7.widget.LinearLayoutManager.VERTICAL);
+            layoutManager.setOrientation(androidx.recyclerview.widget.LinearLayoutManager.VERTICAL);
         }
     }
 
@@ -179,7 +180,7 @@ export class GridView extends GridViewBase {
             return;
         }
 
-        const layoutManager = this.nativeView.getLayoutManager() as android.support.v7.widget.GridLayoutManager;
+        const layoutManager = this.nativeView.getLayoutManager() as androidx.recyclerview.widget.GridLayoutManager;
         let spanCount: number;
 
         if (this.orientation === "horizontal") {
@@ -217,9 +218,9 @@ export class GridView extends GridViewBase {
     }
 
     private _getLayoutManagarOrientation() {
-        let orientation = android.support.v7.widget.LinearLayoutManager.VERTICAL;
+        let orientation = androidx.recyclerview.widget.LinearLayoutManager.VERTICAL;
         if (this.orientation === "horizontal") {
-            orientation = android.support.v7.widget.LinearLayoutManager.HORIZONTAL;
+            orientation = androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL;
         }
 
         return orientation;
@@ -227,7 +228,7 @@ export class GridView extends GridViewBase {
 }
 
 // Snapshot friendly GridViewScrollListener
-interface GridViewScrollListener extends android.support.v7.widget.RecyclerView.OnScrollListener {
+interface GridViewScrollListener extends androidx.recyclerview.widget.RecyclerView.OnScrollListener {
     // tslint:disable-next-line:no-misused-new
     new(owner: WeakRef<GridView>): GridViewScrollListener;
 }
@@ -239,14 +240,15 @@ function initGridViewScrollListener() {
         return;
     }
 
-    class GridViewScrollListenerImpl extends android.support.v7.widget.RecyclerView.OnScrollListener {
+    @NativeClass()
+    class GridViewScrollListenerImpl extends androidx.recyclerview.widget.RecyclerView.OnScrollListener {
         constructor(private owner: WeakRef<GridView>) {
             super();
 
             return global.__native(this);
         }
 
-        public onScrolled(view: android.support.v7.widget.RecyclerView, dx: number, dy: number) {
+        public onScrolled(view: androidx.recyclerview.widget.RecyclerView, dx: number, dy: number) {
             const owner: GridView = this.owner.get();
             if (!owner) {
                 return;
@@ -259,7 +261,7 @@ function initGridViewScrollListener() {
                 scrollY: dy,
             });
 
-            const lastVisibleItemPos = (view.getLayoutManager() as android.support.v7.widget.GridLayoutManager).findLastCompletelyVisibleItemPosition();
+            const lastVisibleItemPos = (view.getLayoutManager() as androidx.recyclerview.widget.GridLayoutManager).findLastCompletelyVisibleItemPosition();
             if (owner && owner.items) {
                 const itemCount = owner.items.length - 1;
                 if (lastVisibleItemPos === itemCount) {
@@ -272,7 +274,7 @@ function initGridViewScrollListener() {
 
         }
 
-        public onScrollStateChanged(view: android.support.v7.widget.RecyclerView, newState: number) {
+        public onScrollStateChanged(view: androidx.recyclerview.widget.RecyclerView, newState: number) {
             // Not Needed
         }
     }
@@ -282,7 +284,7 @@ function initGridViewScrollListener() {
 // END snapshot friendly GridViewScrollListener
 
 // Snapshot friendly GridViewAdapter
-interface GridViewAdapter extends android.support.v7.widget.RecyclerView.Adapter {
+interface GridViewAdapter extends androidx.recyclerview.widget.RecyclerView.Adapter<any> {
     // tslint:disable-next-line:no-misused-new
     new(owner: WeakRef<GridView>): GridViewAdapter;
 }
@@ -293,9 +295,10 @@ function initGridViewAdapter() {
     if (GridViewAdapter) {
         return;
     }
-
-    @Interfaces([android.view.View.OnClickListener])
-    class GridViewCellHolder extends android.support.v7.widget.RecyclerView.ViewHolder implements android.view.View.OnClickListener {
+    
+    @NativeClass()
+    @Interfaces([android.view.View.OnClickListener])    
+    class GridViewCellHolder extends androidx.recyclerview.widget.RecyclerView.ViewHolder implements android.view.View.OnClickListener {
         constructor(private owner: WeakRef<View>, private gridView: WeakRef<GridView>) {
             super(owner.get().android);
 
@@ -305,11 +308,6 @@ function initGridViewAdapter() {
 
             return nativeThis;
         }
-
-        get view(): View {
-            return this.owner ? this.owner.get() : null;
-        }
-
         public onClick(v: android.view.View) {
             const gridView = this.gridView.get();
 
@@ -323,9 +321,13 @@ function initGridViewAdapter() {
             });
         }
 
+        get view(): View {
+            return this.owner ? this.owner.get() : null;
+        }
     }
 
-    class GridViewAdapterImpl extends android.support.v7.widget.RecyclerView.Adapter {
+    @NativeClass()
+    class GridViewAdapterImpl extends androidx.recyclerview.widget.RecyclerView.Adapter<any> {
         constructor(private owner: WeakRef<GridView>) {
             super();
 
@@ -364,7 +366,7 @@ function initGridViewAdapter() {
             return itemViewType;
         }
 
-        public onCreateViewHolder(parent: android.view.ViewGroup, viewType: number): android.support.v7.widget.RecyclerView.ViewHolder {
+        public onCreateViewHolder(parent: android.view.ViewGroup, viewType: number): androidx.recyclerview.widget.RecyclerView.ViewHolder {
             const owner = this.owner.get();
             const template = owner._itemTemplatesInternal[viewType];
             let view = template.createView();
@@ -378,6 +380,7 @@ function initGridViewAdapter() {
 
             owner._realizedItems.set(view.android, view);
 
+            //@ts-nocheck
             return new GridViewCellHolder(new WeakRef(view), new WeakRef(owner));
         }
 
@@ -417,7 +420,8 @@ function initGridViewAdapter() {
 // END Snapshot friendly GridViewAdapter
 
 // Snapshot friendly GridViewRecyclerView
-interface GridViewRecyclerView extends android.support.v7.widget.RecyclerView {
+
+interface GridViewRecyclerView extends androidx.recyclerview.widget.RecyclerView {
     // tslint:disable-next-line:no-misused-new
     new(context: any, owner: WeakRef<GridView>): GridViewRecyclerView;
 }
@@ -429,7 +433,7 @@ function initGridViewRecyclerView() {
         return;
     }
 
-    class GridViewRecyclerViewImpl extends android.support.v7.widget.RecyclerView {
+    class GridViewRecyclerViewImpl extends androidx.recyclerview.widget.RecyclerView {
         constructor(context: android.content.Context, private owner: WeakRef<GridView>) {
             super(context);
 

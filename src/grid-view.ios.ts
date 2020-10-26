@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************** */
 
-import { EventData, Observable } from "data/observable";
-import { KeyedTemplate, Length, View } from "ui/core/view";
-import * as utils from "utils/utils";
+import { EventData, Observable } from "@nativescript/core/data/observable";
+import { KeyedTemplate, Length, View } from "@nativescript/core";
+import * as utils from "@nativescript/core/utils";
 
 import {
     GridViewBase,
@@ -57,7 +57,7 @@ export class GridView extends GridViewBase {
         super.initNativeView();
 
         const nativeView: UICollectionView = this.nativeViewProtected;
-        nativeView.backgroundColor = utils.ios.getter(UIColor, UIColor.clearColor);
+        nativeView.backgroundColor = UIColor.clearColor;
         nativeView.registerClassForCellWithReuseIdentifier(GridViewCell.class(), this._defaultTemplate.key);
         nativeView.autoresizesSubviews = false;
         nativeView.autoresizingMask = UIViewAutoresizing.None;
@@ -90,7 +90,7 @@ export class GridView extends GridViewBase {
         this.ios.delegate = null;
         super.onUnloaded();
     }
-
+    
     get ios(): UICollectionView {
         return this.nativeViewProtected;
     }
@@ -312,6 +312,7 @@ export class GridView extends GridViewBase {
     }
 }
 
+@NativeClass()
 class GridViewCell extends UICollectionViewCell {
     public static new(): GridViewCell {
         return super.new() as GridViewCell;
@@ -337,8 +338,8 @@ class GridViewCell extends UICollectionViewCell {
     }
 }
 
-@ObjCClass(UICollectionViewDataSource)
-class GridViewDataSource extends NSObject implements UICollectionViewDataSource {
+@NativeClass()
+class GridViewDataSource extends NSObject  {
     public static initWithOwner(owner: WeakRef<GridView>): GridViewDataSource {
         const dataSource = GridViewDataSource.new() as GridViewDataSource;
         dataSource._owner = owner;
@@ -371,10 +372,12 @@ class GridViewDataSource extends NSObject implements UICollectionViewDataSource 
 
         return cell;
     }
+
+    ObjCProtocols = [UICollectionViewDataSource]
 }
 
-@ObjCClass(UICollectionViewDelegate, UICollectionViewDelegateFlowLayout)
-class UICollectionViewDelegateImpl extends NSObject implements UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
+@NativeClass()
+class UICollectionViewDelegateImpl extends NSObject {
     public static initWithOwner(owner: WeakRef<GridView>): UICollectionViewDelegateImpl {
         const delegate = UICollectionViewDelegateImpl.new() as UICollectionViewDelegateImpl;
         delegate._owner = owner;
@@ -429,4 +432,7 @@ class UICollectionViewDelegateImpl extends NSObject implements UICollectionViewD
             scrollY: owner.verticalOffset
         });
     }
+
+    ObjCProtocols = [UICollectionViewDelegate, UICollectionViewDelegateFlowLayout]
 }
+

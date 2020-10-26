@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************** */
 
-import { KeyedTemplate, PercentLength, Template, ContainerView } from "ui/core/view";
-import { ItemsSource, ItemEventData, TemplatedItemsView } from "ui/list-view";
-import { EventData } from "data/observable";
+import { KeyedTemplate, PercentLength, Template, ContainerView } from "@nativescript/core/ui";
+import { ItemsSource, ItemEventData, TemplatedItemsView } from "@nativescript/core/ui/list-view";
+import { EventData } from "@nativescript/core";
 
 export type Orientation = "horizontal" | "vertical"
 

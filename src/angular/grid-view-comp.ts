@@ -19,11 +19,12 @@ import {
     Component,
     ElementRef,
     IterableDiffers,
-    forwardRef
+    forwardRef,
+    NgZone
 } from "@angular/core";
 
-import { TEMPLATED_ITEMS_COMPONENT, TemplatedItemsComponent } from "nativescript-angular/directives/templated-items-comp";
-import { isKnownView, registerElement } from "nativescript-angular/element-registry";
+import { TEMPLATED_ITEMS_COMPONENT, TemplatedItemsComponent } from "@nativescript/angular";
+import { isKnownView, registerElement } from "@nativescript/angular";
 
 import { GridView } from "../grid-view";
 
@@ -45,8 +46,8 @@ export class GridViewComponent extends TemplatedItemsComponent {
 
     constructor(
         _elementRef: ElementRef,
-        _iterableDiffers: IterableDiffers) {
-        super(_elementRef, _iterableDiffers);
+        _iterableDiffers: IterableDiffers, zone: NgZone) {
+        super(_elementRef, _iterableDiffers, zone);
         
     }
 }

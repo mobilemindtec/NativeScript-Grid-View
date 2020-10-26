@@ -14,19 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************** */
 
-import { ObservableArray } from "data/observable-array";
-import { parse, parseMultipleTemplates } from "ui/builder";
-import { EventData, makeParser, makeValidator } from "ui/content-view";
-import { CSSType, CoercibleProperty, ContainerView, KeyedTemplate, Length, PercentLength, Property, Template, View } from "ui/core/view";
-import { addWeakEventListener, removeWeakEventListener } from "ui/core/weak-event-listener";
-import { Label } from "ui/label";
-import { ItemsSource } from "ui/list-view";
+import { ObservableArray } from "@nativescript/core";
+import { parse, parseMultipleTemplates } from "@nativescript/core/ui/builder";
+import { EventData, makeParser, makeValidator } from "@nativescript/core";
+import { CSSType, CoercibleProperty, ContainerView, KeyedTemplate, Length, PercentLength, Property, Template, View } from "@nativescript/core";
+import { addWeakEventListener, removeWeakEventListener } from "@nativescript/core";
+import { Label } from "@nativescript/core/ui/label";
+import { ItemsSource } from "@nativescript/core/ui/list-view";
 import { GridItemEventData, GridView as GridViewDefinition, Orientation } from ".";
 
 const autoEffectiveRowHeight = 100;
 const autoEffectiveColWidth = 100;
 
-export * from "ui/core/view";
+export * from "@nativescript/core/ui";
 
 // tslint:disable-next-line
 export module knownTemplates {

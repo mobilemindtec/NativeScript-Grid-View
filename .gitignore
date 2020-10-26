@@ -61,3 +61,5 @@ demo-ng/**/*.css
 !webpack.*.js
 report
 *.log
+
+publish/package/
