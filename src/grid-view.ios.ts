@@ -373,7 +373,7 @@ class GridViewDataSource extends NSObject  {
         return cell;
     }
 
-    ObjCProtocols = [UICollectionViewDataSource]
+    public static ObjCProtocols = [UICollectionViewDataSource]
 }
 
 @NativeClass()
@@ -433,6 +433,6 @@ class UICollectionViewDelegateImpl extends NSObject {
         });
     }
 
-    ObjCProtocols = [UICollectionViewDelegate, UICollectionViewDelegateFlowLayout]
+    public static ObjCProtocols = [UICollectionViewDelegate, UICollectionViewDelegateFlowLayout]
 }
 
