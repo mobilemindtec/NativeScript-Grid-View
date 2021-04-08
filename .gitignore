@@ -41,6 +41,7 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+.tmp_backup
 
 bin
 obj
@@ -55,4 +56,15 @@ node_modules
 platforms
 demo/platforms
 demo/lib
+<<<<<<< HEAD
 !webpack.*.js
+=======
+demo-ng/platforms
+demo-ng/lib
+demo-ng/**/*.css
+!webpack.*.js
+report
+*.log
+
+publish/package/
+>>>>>>> 2f7d529f6f5a8e6f0eba8a2dd84a326bb14dd3a0

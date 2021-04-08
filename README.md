@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+**This repo only supports NativeScript pre-6.0. The latest version of the plugin supporting NS 6+ is availble as part of [ProPlugins](https://proplugins.org).**
+# NativeScript GridView widget
+>>>>>>> 2f7d529f6f5a8e6f0eba8a2dd84a326bb14dd3a0
 [![Build Status](https://travis-ci.org/PeterStaev/NativeScript-Grid-View.svg?branch=master)](https://travis-ci.org/PeterStaev/NativeScript-Grid-View)
 [![npm downloads](https://img.shields.io/npm/dm/nativescript-grid-view.svg)](https://www.npmjs.com/package/nativescript-grid-view)
 [![npm downloads](https://img.shields.io/npm/dt/nativescript-grid-view.svg)](https://www.npmjs.com/package/nativescript-grid-view)
@@ -259,4 +264,8 @@ If you want to run the Angular demo simply use the `demo-ng-` prefix instead of 
 
 `bitcoin:14fjysmpwLvSsAskvLASw6ek5XfhTzskHC`
 
+<<<<<<< HEAD
 ![Donate](https://www.tangrainc.com/qr.png)
+=======
+![Donate](https://www.tangrainc.com/qr.png)
+>>>>>>> 2f7d529f6f5a8e6f0eba8a2dd84a326bb14dd3a0
