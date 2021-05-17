@@ -14,15 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************** */
 
-<<<<<<< HEAD:grid-view.d.ts
-import { KeyedTemplate, PercentLength, Template, ContainerView } from "ui/core/view";
-import { ItemsSource, ItemEventData, TemplatedItemsView } from "ui/list-view";
-import { EventData } from "data/observable";
-=======
 import { KeyedTemplate, PercentLength, Template, ContainerView } from "@nativescript/core/ui";
 import { ItemsSource, ItemEventData, TemplatedItemsView } from "@nativescript/core/ui/list-view";
 import { EventData } from "@nativescript/core";
->>>>>>> 2f7d529f6f5a8e6f0eba8a2dd84a326bb14dd3a0:src/grid-view.d.ts
 
 export type Orientation = "horizontal" | "vertical"
 
